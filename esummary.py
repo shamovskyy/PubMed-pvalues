@@ -1,6 +1,7 @@
 import requests
 import lxml
 import xml.etree.ElementTree as et
+#create a function that gets UID from date http://www.ncbi.nlm.nih.gov/pubmed?term=1997%2F10%2F06/ <= thjat's a sample query
 def query(uID):
     query="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id={}&version=2.0".format(uID)
     get_query=requests.get(query)
