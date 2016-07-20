@@ -2,6 +2,26 @@ import requests
 import lxml
 import xml.etree.ElementTree as et
 #create a function that gets UID from date http://www.ncbi.nlm.nih.gov/pubmed?term=1997%2F10%2F06/ <= thjat's a sample query
+
+def UIDfromdate(date):
+    query="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmax=1000&term={}[edat]".format(date)
+    get_query=requests.get(query)
+    content=get_query.content
+    with open('temp.xml','wb') as f:
+        f.write(content)
+    e= et.parse('temp.xml').getroot()
+    return e
+    
+def getuidsfromquery(results):
+    list_ids=[]
+    for id in results.find('IdList').getchildren():
+        list_ids.append(id.text)
+    return list_ids
+
+def getUIDfromdate(date):
+    a=UIDfromdate(date)
+    return getuidsfromquery(a)
+
 def query(uID):
     query="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id={}&version=2.0".format(uID)
     get_query=requests.get(query)
@@ -26,7 +46,8 @@ def extractAuthors(authors):
     for author in authors:
         values.append(author[0].text)
         columns.append(author[0].tag)
-    print authors.tag,tuple(columns),tuple(values)
+        print authors.tag,tuple(columns),tuple(values)
+        check_insert_select('id','authors',tuple(columns),tuple(values))
     return authors.tag,tuple(columns),tuple(values)
 
 
@@ -40,6 +61,7 @@ def extractArticleIds(articleIds):
             columns.append(tag.tag)
         values.append([articleIds.tag,tuple(columns),tuple(subvalues)])
     print values
+    check_insert('id','papers',tuple(columns),tuple(subvalues))
     return values
 
 
@@ -50,10 +72,8 @@ def getallfromquery(root):
     for child in doc_summary:
         if child.tag == 'Authors':
             extractAuthors(child)
-            print' sup'
         elif child.tag == 'ArticleIds':
             extractArticleIds(child)
-            print 'this is not working'
         else:
             rec[child.tag] = child.text
     return rec
@@ -117,4 +137,10 @@ def getarticleinfo(minuID,maxuID):
         citations=getcitations(i)
         print i,abstract,citations
 
+
+def check_insert(values_wanted, database_name, colnames=(), values=()):
+        results = select(values_wanted, database_name, colnames, values)
+        if results == []:
+            insert(database_name, colnames, values)
+        return
 
