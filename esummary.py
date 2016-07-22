@@ -1,26 +1,43 @@
 import requests
 import lxml
 import xml.etree.ElementTree as et
+from datetime import date, timedelta as td
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 #create a function that gets UID from date http://www.ncbi.nlm.nih.gov/pubmed?term=1997%2F10%2F06/ <= thjat's a sample query
+def main(start_month, start_day, start_year, no_of_days_to_check):
 
-def UIDfromdate(date):
-    query="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmax=1000&term={}[edat]".format(date)
+    start_date = date(start_year,start_month,start_day)
+
+    for i in range(no_of_days_to_check + 1):
+        print (start_date+td(days=i)).strftime("%Y/%m/%d")
+        getUIDsFromDate( (start_date+td(days=i)).strftime("%Y/%m/%d"))
+
+
+
+def getUIDsFromDate(date):
+    query="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmax=10000&term={}[pdat]".format(date)
+    print query
     get_query=requests.get(query)
-    content=get_query.content
-    with open('temp.xml','wb') as f:
-        f.write(content)
-    e= et.parse('temp.xml').getroot()
-    return e
-    
-def getuidsfromquery(results):
     list_ids=[]
-    for id in results.find('IdList').getchildren():
-        list_ids.append(id.text)
-    return list_ids
+    try:
+        content=get_query.content
 
-def getUIDfromdate(date):
-    a=UIDfromdate(date)
-    return getuidsfromquery(a)
+        with open('temp.xml','wb') as f:
+            f.write(content)
+        e= et.parse('temp.xml').getroot()
+        
+        for id in e.find('IdList').getchildren():
+            list_ids.append(id.text)
+        print len(list_ids)
+        return list_ids
+    except Exception as e:
+        logger.error("No content found for %s, %s. Exception %s thrown", date, query, e)
+
+
 
 def query(uID):
     query="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi?db=pubmed&id={}&version=2.0".format(uID)
