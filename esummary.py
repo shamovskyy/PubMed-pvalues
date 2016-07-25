@@ -91,21 +91,22 @@ def getAllFromEsumXML(tree, uid):
     list_tags=['Authors','ArticleIds']
     doc_summary = tree.find('DocumentSummarySet').find('DocumentSummary')
     rec={}
-    columns=[]
-    values=[]
+    columns=["uid"]
+    values=[uid]
     for child in doc_summary:
         if child.tag == 'Authors':
             authorIDs=extractAuthors(child, uid)
         elif child.tag == 'ArticleIds':
             artcolumns, artvalues=extractArticleIds(child)
             for i in range(len(artcolumns)): 
-                rec[artcolumns[i]]=artvalues[i]
-                columns.append(artcolumns[i])
-                values.append(artvalues[i])
-        elif child.text!=None and not ("\n") in child.text:
+                if child.text!=None and not ("\n") in child.text and child.text!="null": 
+                    rec[artcolumns[i]]=artvalues[i]
+                    columns.append(artcolumns[i])
+                    values.append(artvalues[i].replace("'",""))
+        elif child.text!=None and not ("\n") in child.text and child.text!="null":
             rec[child.tag] = child.text
             columns.append(child.tag)
-            values.append(child.text)
+            values.append(child.text.replace("'",""))
     #logging.debug(columns, "columns")
     #logging.debug(values, "values")
     check_insert("uid","papers", tuple(columns),tuple(values))
