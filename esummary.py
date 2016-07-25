@@ -18,15 +18,14 @@ sys.setdefaultencoding('utf-8')
 #create a function that gets UID from date http://www.ncbi.nlm.nih.gov/pubmed?term=1997%2F10%2F06/ <= thjat's a sample query
 def main(start_month, start_day, start_year, no_of_days_to_check):
     start_time=time.time()
-    print "hi"
     start_date = date(start_year,start_month,start_day)
     for i in range(no_of_days_to_check + 1):
         uids=getUIDsFromDate( (start_date+td(days=i)).strftime("%Y/%m/%d"))
         print len(uids)
         for uID in uids:
-            print uID
             tree= queryEsummaryByUID(uID)
-            print getAllFromEsumXML(tree, uID)
+            getAllFromEsumXML(tree, uID)
+            getAbstractFromUID(uID)
 
     print time.time()-start_time
 
@@ -73,7 +72,6 @@ def queryEsummaryByUID(uID):
 
 def extractAuthors(authors, uid):
     for author in authors:
-        print author.find("Name").text
         authorID=check_insert_select('id','authors',("Name",),(author.find("Name").text,))[0][0]
         check_insert("id", "Authors_Papers", ("AuthorId", "PaperId"), (authorID, uid))
 
@@ -161,13 +159,12 @@ def getAbstractFromUID(uID):
             print uID
             print 'no abstract'
             return
-        print b,'b'
         length=content[b+10:].find('"')
-        print length,'length'
         abstract=content[b+10:b+length+10]
         abstract=abstract.replace('\n','')
         abstract=abstract.replace('"','').replace("'","")
-        return abstract
+        print abstract
+        dict_cur.execute("UPDATE papers SET abstract='{}' WHERE uid='{}';".format(abstract, uID))
 
 
 
