@@ -12,18 +12,19 @@ reload(sys)
 sys.setdefaultencoding('utf-8')
 
 
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
+#logging.basicConfig(level=logging.INFO)
+#logger = logging.getLogger(__name__)
 
 #create a function that gets UID from date http://www.ncbi.nlm.nih.gov/pubmed?term=1997%2F10%2F06/ <= thjat's a sample query
 def main(start_month, start_day, start_year, no_of_days_to_check):
     start_time=time.time()
+    print "hi"
     start_date = date(start_year,start_month,start_day)
     for i in range(no_of_days_to_check + 1):
         uids=getUIDsFromDate( (start_date+td(days=i)).strftime("%Y/%m/%d"))
         print len(uids)
         for uID in uids:
+            print uID
             tree= queryEsummaryByUID(uID)
             print getAllFromEsumXML(tree, uID)
 
@@ -40,8 +41,8 @@ def queryEsearchByDate(date):
         return tree
 
     except Exception as e:
-        logger.error("No content found for %s, %s. Exception %s thrown", date, query, e)
-        
+        #logger.error("No content found for %s, %s. Exception %s thrown", date, query, e)
+        print "No content found for %s, %s. Exception %s thrown", date, query, e
 def getUIDsFromEsearchXML(tree):   
     list_ids=[]
     try:    
@@ -49,8 +50,8 @@ def getUIDsFromEsearchXML(tree):
             list_ids.append(id.text)
 
     except Exception as e:
-        logger.error("Cannot find id list for %s. Exception %s thrown", date, e)
-
+        #logger.error("Cannot find id list for %s. Exception %s thrown", date, e)
+        print "Cannot find id list for %s. Exception %s thrown", date, e
     return list_ids
 
 def getUIDsFromDate(date):
@@ -67,8 +68,8 @@ def queryEsummaryByUID(uID):
         return tree
 
     except Exception as e:
-        logger.error("No content found for %s, %s. Exception %s thrown", uID, query, e)
-        
+        #logger.error("No content found for %s, %s. Exception %s thrown", uID, query, e)
+        print "No content found for %s, %s. Exception %s thrown", uID, query, e        
 
 def extractAuthors(authors, uid):
     for author in authors:
@@ -101,12 +102,12 @@ def getAllFromEsumXML(tree, uid):
                 rec[artcolumns[i]]=artvalues[i]
                 columns.append(artcolumns[i])
                 values.append(artvalues[i])
-        else:
+        elif child.text!=None and not ("\n") in child.text:
             rec[child.tag] = child.text
             columns.append(child.tag)
             values.append(child.text)
-    logging.debug(columns, "columns")
-    logging.debug(values, "values")
+    #logging.debug(columns, "columns")
+    #logging.debug(values, "values")
     check_insert("uid","papers", tuple(columns),tuple(values))
     return rec
 
