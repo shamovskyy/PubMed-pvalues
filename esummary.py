@@ -1,7 +1,7 @@
 import requests
 import lxml
 from xml.etree import ElementTree as et
-from datetime import date, timedelta as td
+from datetime import date, timedelta as td, datetime
 import logging
 import time
 import psycopg2
@@ -23,21 +23,32 @@ def main(start_month, start_day, start_year, no_of_days_to_check):
         uids=getUIDsFromDate( (start_date+td(days=i)).strftime("%Y/%m/%d"))
         print len(uids)
         for uID in uids:
+            print uID
             tree= queryEsummaryByUID(uID)
-            getAllFromEsumXML(tree, uID)
-            getAbstractFromUID(uID)
+            retries=0
+            while not tree:
+                retries+=1
+                time.sleep(60)
+                tree= queryEsummaryByUID(uID)
+                ******
+            abstract=getAbstractFromUID(uID)
+            if abstract:
+                getAllFromEsumXML(tree, uID)
+                dict_cur.execute("UPDATE papers SET abstract='{}' WHERE uid='{}';".format(abstract, uID))
+
 
     print time.time()-start_time
 
 
-def queryEsearchByDate(date):
-    query="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmax=10000&term=jama[ta]+AND+{}[pdat]".format(date)
+def queryEsearchByDate(date, tries=0):
+    query="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmax=10000&term={}[pdat]".format(date)
     print query
     get_query=requests.get(query)
     try:
         content=get_query.content        
         tree= et.fromstring(content)
         return tree
+
 
     except Exception as e:
         #logger.error("No content found for %s, %s. Exception %s thrown", date, query, e)
@@ -110,10 +121,28 @@ def getAllFromEsumXML(tree, uid):
                 journalid=check_insert_select("id", "journals", "name", child.text.replace("'","").replace('"',""))[0]
                 columns.append("journalid")
                 values.append(journalid)
+    values.append( values[columns.index("PubDate")])
+    columns.append( "PubDateString")
 
     #logging.debug(columns, "columns")
     #logging.debug(values, "values")
-    check_insert("uid","papers", tuple(columns),tuple(values))
+    try:
+        check_insert("uid","papers", tuple(columns),tuple(values))
+    except psycopg2.DataError:
+        if (values[columns.index("PubDate")].find("-")!=-1):
+            date=values[columns.index("PubDate")][0:values[columns.index("PubDate")].index("-")]
+        else:
+            date=values[columns.index("PubDate")]
+
+        if len(date.split())==1:
+            date=date+" Jan"
+        if len(date.split())==2:
+            date=date+" 01"
+        date=datetime.strptime(date,'%Y %b %d').strftime('%Y %m %d')
+
+        values[columns.index("PubDate")]=date
+        check_insert("uid","papers", tuple(columns),tuple(values))
+
     return rec
 
 
@@ -170,9 +199,8 @@ def getAbstractFromUID(uID):
         abstract=abstract.replace('\n','')
         abstract=abstract.replace('"','').replace("'","")
 
-        dict_cur.execute("UPDATE papers SET abstract='{}' WHERE uid='{}';".format(abstract, uID))
 
-
+        return abstract
 
 
 
