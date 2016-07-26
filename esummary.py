@@ -31,7 +31,7 @@ def main(start_month, start_day, start_year, no_of_days_to_check):
 
 
 def queryEsearchByDate(date):
-    query="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmax=10000&term={}[pdat]".format(date)
+    query="http://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&retmax=10000&term=jama[ta]+AND+{}[pdat]".format(date)
     print query
     get_query=requests.get(query)
     try:
@@ -72,7 +72,8 @@ def queryEsummaryByUID(uID):
 
 def extractAuthors(authors, uid):
     for author in authors:
-        authorID=check_insert_select('id','authors',("Name",),(author.find("Name").text,))[0][0]
+        authorName=author.find("Name").text.replace("'","").replace('"',"")
+        authorID=check_insert_select('id','authors',("Name",),(authorName,))[0][0]
         check_insert("id", "Authors_Papers", ("AuthorId", "PaperId"), (authorID, uid))
 
 
@@ -104,7 +105,12 @@ def getAllFromEsumXML(tree, uid):
         elif child.text!=None and not ("\n") in child.text and child.text!="null":
             rec[child.tag] = child.text
             columns.append(child.tag)
-            values.append(child.text.replace("'",""))
+            values.append(child.text.replace("'","").replace('"',""))
+            if child.tag=="fulljournalname":
+                journalid=check_insert_select("id", "journals", "name", child.text.replace("'","").replace('"',""))[0]
+                columns.append("journalid")
+                values.append(journalid)
+
     #logging.debug(columns, "columns")
     #logging.debug(values, "values")
     check_insert("uid","papers", tuple(columns),tuple(values))
@@ -163,7 +169,7 @@ def getAbstractFromUID(uID):
         abstract=content[b+10:b+length+10]
         abstract=abstract.replace('\n','')
         abstract=abstract.replace('"','').replace("'","")
-        print abstract
+
         dict_cur.execute("UPDATE papers SET abstract='{}' WHERE uid='{}';".format(abstract, uID))
 
 
