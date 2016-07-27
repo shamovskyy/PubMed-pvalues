@@ -5,36 +5,46 @@ from datetime import date, timedelta as td, datetime
 import logging
 import time
 import psycopg2
-from secret import dict_cur
+from secret import dict_cur, conn
 from psycohandler import *
 import sys 
+import csv
 reload(sys)
 sys.setdefaultencoding('utf-8')
+
 
 
 #logging.basicConfig(level=logging.INFO)
 #logger = logging.getLogger(__name__)
 
-#create a function that gets UID from date http://www.ncbi.nlm.nih.gov/pubmed?term=1997%2F10%2F06/ <= thjat's a sample query
-def main(start_month, start_day, start_year, no_of_days_to_check):
+def getUIDsfromCSV(filename):
+    with open(filename, "rU") as f:
+        reader=csv.reader(f)
+        uids=[row[0] for row in reader if any(row)]
+    print uids[:10]
+    return uids
+
+def main(start_month=0, start_day=0, start_year=0, no_of_days_to_check=0):
     start_time=time.time()
-    start_date = date(start_year,start_month,start_day)
-    for i in range(no_of_days_to_check + 1):
-        uids=getUIDsFromDate( (start_date+td(days=i)).strftime("%Y/%m/%d"))
-        print len(uids)
-        for uID in uids:
-            print uID
+    uids= getUIDsfromCSV("UIDsPvalues.csv")[201:300]
+    # start_date = date(start_year,start_month,start_day)
+    # for i in range(no_of_days_to_check + 1):
+    #     uids=getUIDsFromDate( (start_date+td(days=i)).strftime("%Y/%m/%d"))
+    #     print len(uids)
+    for uID in uids:
+        print uID
+        tree= queryEsummaryByUID(uID)
+        retries=0
+        while not tree:
+            retries+=1
+            time.sleep(60)
             tree= queryEsummaryByUID(uID)
-            retries=0
-            while not tree:
-                retries+=1
-                time.sleep(60)
-                tree= queryEsummaryByUID(uID)
-                ******
-            abstract=getAbstractFromUID(uID)
-            if abstract:
-                getAllFromEsumXML(tree, uID)
-                dict_cur.execute("UPDATE papers SET abstract='{}' WHERE uid='{}';".format(abstract, uID))
+            if retries>=7:
+                break
+        abstract=getAbstractFromUID(uID)
+        if abstract:
+            getAllFromEsumXML(tree, uID)
+            dict_cur.execute("UPDATE papers SET abstract='{}' WHERE uid='{}';".format(abstract, uID))
 
 
     print time.time()-start_time
@@ -117,8 +127,8 @@ def getAllFromEsumXML(tree, uid):
             rec[child.tag] = child.text
             columns.append(child.tag)
             values.append(child.text.replace("'","").replace('"',""))
-            if child.tag=="fulljournalname":
-                journalid=check_insert_select("id", "journals", "name", child.text.replace("'","").replace('"',""))[0]
+            if child.tag=="FullJournalName":
+                journalid=check_insert_select("id", "journals", ("name",), (child.text.replace("'","").replace('"',""),))[0][0]
                 columns.append("journalid")
                 values.append(journalid)
     values.append( values[columns.index("PubDate")])
@@ -138,8 +148,10 @@ def getAllFromEsumXML(tree, uid):
             date=date+" Jan"
         if len(date.split())==2:
             date=date+" 01"
-        date=datetime.strptime(date,'%Y %b %d').strftime('%Y %m %d')
-
+        try:
+            date=datetime.strptime(date,'%Y %b %d').strftime('%Y %m %d')
+        except ValueError:
+            date=datetime.strptime(date.split()[0]+" Jan 01", '%Y %b %d').strftime('%Y %m %d')
         values[columns.index("PubDate")]=date
         check_insert("uid","papers", tuple(columns),tuple(values))
 
@@ -210,3 +222,4 @@ def getarticleinfo(minuID,maxuID):
         citations=getcitations(i)
         print i,abstract,citations
 
+main()
