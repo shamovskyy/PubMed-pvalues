@@ -21,12 +21,11 @@ def getUIDsfromCSV(filename):
     with open(filename, "rU") as f:
         reader=csv.reader(f)
         uids=[row[0] for row in reader if any(row)]
-    print uids[:10]
     return uids
 
 def main(start_month=0, start_day=0, start_year=0, no_of_days_to_check=0):
     start_time=time.time()
-    uids= getUIDsfromCSV("UIDsPvalues.csv")[201:300]
+    uids= getUIDsfromCSV("UIDsPvalues.csv")[601:700]
     # start_date = date(start_year,start_month,start_day)
     # for i in range(no_of_days_to_check + 1):
     #     uids=getUIDsFromDate( (start_date+td(days=i)).strftime("%Y/%m/%d"))
@@ -206,7 +205,7 @@ def getAbstractFromUID(uID):
             print uID
             print 'no abstract'
             return
-        length=content[b+10:].find('"')
+        length=content[b+10:].find('",')
         abstract=content[b+10:b+length+10]
         abstract=abstract.replace('\n','')
         abstract=abstract.replace('"','').replace("'","")
@@ -222,4 +221,4 @@ def getarticleinfo(minuID,maxuID):
         citations=getcitations(i)
         print i,abstract,citations
 
-main()
+#main()
